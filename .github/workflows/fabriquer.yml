@@ -1,0 +1,58 @@
+name: Fabriquer Metin TV
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fabriquer
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Clé de signature (secrets du dépôt, jamais dans les fichiers)
+        env:
+          CLE: ${{ secrets.METIN_TV_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$CLE" ]; then
+            echo "$CLE" | base64 -d > "$RUNNER_TEMP/metin-tv.jks"
+            echo "METIN_TV_KEYSTORE_FICHIER=$RUNNER_TEMP/metin-tv.jks" >> "$GITHUB_ENV"
+            echo "Clé de signature : trouvée."
+          else
+            echo "::warning::Pas de clé de signature : signature de test (les mises à jour demanderont de réinstaller)."
+          fi
+
+      - name: Fabriquer l'application
+        env:
+          METIN_TV_KEYSTORE_MDP: ${{ secrets.METIN_TV_KEYSTORE_MDP }}
+        run: gradle --no-daemon assembleRelease
+
+      - name: Publier metin-tv.apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk metin-tv.apk
+          sha256sum metin-tv.apk | tee metin-tv.apk.sha256
+          version="1.0.${GITHUB_RUN_NUMBER}"
+          gh release create "v$version" metin-tv.apk metin-tv.apk.sha256 \
+            --title "Metin TV $version" \
+            --notes "Application Metin pour Google TV. À télécharger avec Downloader : https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/metin-tv.apk" \
+            --latest
