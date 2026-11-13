@@ -8,8 +8,8 @@ package fr.metinia.tv;
  */
 final class Souris {
     static final int HAUT = 0, BAS = 1, GAUCHE = 2, DROITE = 3;
-    /** appui long sur OK : bascule entre le mode normal et le mode souris */
-    static final long APPUI_LONG_MS = 600;
+    /** 1.0.3 : appui long sur Retour = changer de mode (OK gardé reste un vrai appui long sur la page) */
+    static final long RETOUR_LONG_MS = 800;
     /** le pointeur se cache après 5 secondes sans bouger */
     static final long CACHE_APRES_MS = 5000;
 

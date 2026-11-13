@@ -7,6 +7,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -54,9 +55,10 @@ import java.util.Locale;
  * - dictée : la reconnaissance vocale de la télé remplace SpeechRecognition (absente des WebView) ;
  * - lecture à voix haute : la synthèse vocale de la télé remplace speechSynthesis (absente des WebView) ;
  * - le site reconnaît l'application par ?ecran=tele et par « MetinTV/1.0 » dans le User-Agent ;
- * - mode souris (1.0.3) : appui long sur OK pour basculer ; une flèche déplacée par les flèches de la télécommande
- *   (accélère si on garde appuyé), OK = toucher à cet endroit, OK gardé + flèches = glisser (tourner le Cerveau 3D),
- *   défilement au bord ; mode normal à chaque lancement ;
+ * - mode souris (1.0.3) : une flèche verte au liseré fin, déplacée par les flèches de la télécommande (accélère si on
+ *   garde appuyé), OK = cliquer à cet endroit, OK gardé = appui long, OK gardé + flèches = glisser (tourner le Cerveau 3D),
+ *   défilement au bord ; on passe du mode souris au mode habituel (sélection par cadre), et retour, avec la touche Menu /
+ *   Réglages / Info / Guide de la télécommande, ou un appui long sur Retour ; le mode choisi est retenu (réglage) ;
  * - si le moteur de la page tombe, la page est rechargée au lieu de rester figée.
  * Aucune clé, aucune donnée : la connexion reste gardée par le site lui-même (stockage du WebView).
  */
@@ -83,6 +85,8 @@ public class Principale extends Activity {
     private final Handler boucle = new Handler(Looper.getMainLooper());
     private boolean okBas = false, okConsomme = false, glisse = false, toucheEnCours = false, boucleActive = false;
     private long debutToucher = 0, dernierGeste = 0;
+    private boolean retourBas = false, retourConsomme = false;
+    private SharedPreferences reglages;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -113,6 +117,9 @@ public class Principale extends Activity {
         racine.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> souris.taille(r - l, b - t));
         setContentView(racine);
         pleinEcran();
+        // le mode choisi la dernière fois (réglage gardé par l'application)
+        reglages = getSharedPreferences("metin-tv", MODE_PRIVATE);
+        if (reglages.getBoolean("souris", false)) { souris.actif = true; boucle.postDelayed(() -> { montrerFleche(); dire("Mode souris · touche Menu ou appui long sur Retour pour le mode habituel"); }, 1500); }
 
         WebSettings r = vue.getSettings();
         r.setJavaScriptEnabled(true);
@@ -306,6 +313,9 @@ public class Principale extends Activity {
         if (vue == null) return super.dispatchKeyEvent(e);
         int code = e.getKeyCode();
         if (estOk(code)) return toucheOk(e);
+        // changer de mode : touche Menu / Réglages / Info / Guide, ou appui long sur Retour
+        if (estToucheMode(code)) { if (e.getAction() == KeyEvent.ACTION_UP) basculer(); return true; }
+        if (code == KeyEvent.KEYCODE_BACK) return toucheRetour(e);
         int dir = direction(code);
         if (souris.actif && dir >= 0) {
             if (e.getAction() == KeyEvent.ACTION_DOWN) {
@@ -327,11 +337,9 @@ public class Principale extends Activity {
             if (e.getRepeatCount() > 0) return true;
             okBas = true; okConsomme = false; glisse = false;
             if (souris.actif) { montrerFleche(); toucher(MotionEvent.ACTION_DOWN); }
-            boucle.postDelayed(appuiLong, Souris.APPUI_LONG_MS);
             return true;
         }
         if (e.getAction() == KeyEvent.ACTION_UP) {
-            boucle.removeCallbacks(appuiLong);
             okBas = false;
             if (okConsomme) return true;
             if (souris.actif) toucher(MotionEvent.ACTION_UP);
@@ -345,18 +353,37 @@ public class Principale extends Activity {
         return true;
     }
 
-    private final Runnable appuiLong = () -> {
-        if (!okBas || glisse) return;
-        okConsomme = true;
-        if (souris.actif && toucheEnCours) toucher(MotionEvent.ACTION_CANCEL);
-        basculer();
-    };
+    /** les touches qui changent de mode (selon les télécommandes, l'une ou l'autre existe) */
+    private static boolean estToucheMode(int code) {
+        return code == KeyEvent.KEYCODE_MENU || code == KeyEvent.KEYCODE_SETTINGS || code == KeyEvent.KEYCODE_INFO
+                || code == KeyEvent.KEYCODE_GUIDE || code == KeyEvent.KEYCODE_PROG_RED || code == KeyEvent.KEYCODE_BOOKMARK;
+    }
+
+    /** Retour : bref = page précédente (ou quitter) ; long = changer de mode */
+    private boolean toucheRetour(KeyEvent e) {
+        if (e.getAction() == KeyEvent.ACTION_DOWN) {
+            if (e.getRepeatCount() == 0) { retourBas = true; retourConsomme = false; boucle.postDelayed(retourLong, Souris.RETOUR_LONG_MS); }
+            return true;
+        }
+        if (e.getAction() == KeyEvent.ACTION_UP) {
+            boucle.removeCallbacks(retourLong);
+            retourBas = false;
+            if (retourConsomme) return true;
+            if (vue != null && vue.canGoBack()) vue.goBack(); else finish();
+            return true;
+        }
+        return true;
+    }
+
+    private final Runnable retourLong = () -> { if (!retourBas) return; retourConsomme = true; basculer(); };
 
     private void basculer() {
         souris.actif = !souris.actif;
         souris.toutRelacher();
-        if (souris.actif) { souris.centrer(); montrerFleche(); dire("Mode souris"); }
-        else { fleche.setVisibility(View.INVISIBLE); dire("Mode normal"); }
+        if (toucheEnCours) toucher(MotionEvent.ACTION_CANCEL);
+        if (souris.actif) { souris.centrer(); montrerFleche(); dire("Mode souris · flèches pour bouger, OK pour cliquer"); }
+        else { fleche.setVisibility(View.INVISIBLE); dire("Mode habituel · sélection par cadre"); }
+        if (reglages != null) reglages.edit().putBoolean("souris", souris.actif).apply();
     }
 
     private void dire(String texte) {
@@ -445,11 +472,13 @@ public class Principale extends Activity {
             forme.lineTo(10.6f * d, 17 * d);
             forme.lineTo(19 * d, 17 * d);
             forme.close();
-            plein.setColor(Color.WHITE);
+            // charte du site : vert #7cf08a, liseré fin sombre, légère lueur verte
+            plein.setColor(Color.rgb(124, 240, 138));
             plein.setStyle(Paint.Style.FILL);
+            plein.setShadowLayer(4f * d, 0, 0, Color.argb(140, 124, 240, 138));
             bord.setColor(Color.rgb(10, 18, 12));
             bord.setStyle(Paint.Style.STROKE);
-            bord.setStrokeWidth(2.2f * d);
+            bord.setStrokeWidth(1.2f * d);
             bord.setStrokeJoin(Paint.Join.ROUND);
         }
 
@@ -466,10 +495,6 @@ public class Principale extends Activity {
     // ------------------------------------------------------------------ touches de la télécommande
     @Override
     public boolean onKeyDown(int code, KeyEvent evenement) {
-        if (code == KeyEvent.KEYCODE_BACK && vue != null && vue.canGoBack()) {
-            vue.goBack();
-            return true;
-        }
         if (code == KeyEvent.KEYCODE_SEARCH || code == KeyEvent.KEYCODE_VOICE_ASSIST) {
             ecouter("telecommande", "fr-FR");
             return true;

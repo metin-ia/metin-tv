@@ -10,6 +10,10 @@ Application **Metin** pour **Google TV** : elle ouvre https://metin-ia.fr en ple
 - **Voix** : la lecture à voix haute du site passe par la synthèse vocale de la télé.
 - Le site reconnaît l'application par `?ecran=tele` et par `MetinTV/1.0` dans le User-Agent (mode télé).
 - La connexion reste gardée par le site (stockage de l'application).
+- **Mode souris (1.0.3)** : une flèche verte au liseré fin. Les flèches de la télécommande la déplacent (plus on garde
+  appuyé, plus elle va vite) ; OK = cliquer ; OK gardé = appui long ; OK gardé + flèches = glisser. On passe du mode
+  souris au mode habituel (sélection par cadre), et retour, avec la touche **Menu** (ou Réglages, Info, Guide selon la
+  télécommande) ou un **appui long sur Retour**. Le mode choisi est retenu.
 - Aucune clé ni aucune donnée dans ce dépôt.
 
 ## Fabrication
