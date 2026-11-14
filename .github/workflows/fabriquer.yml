@@ -1,3 +1,4 @@
+# version 1.0.4 (14 novembre 2026) : travail « erreurs » — un échec est noté dans Admin › Erreurs de metin-ia.fr (identité de la tâche, sans clé).
 name: Fabriquer Metin TV
 
 on:
@@ -56,3 +57,26 @@ jobs:
             --title "Metin TV $version" \
             --notes "Application Metin pour Google TV. À télécharger avec Downloader : https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/metin-tv.apk" \
             --latest
+
+  # 14 novembre : un échec de la fabrication écrit sa propre erreur (Admin › Rubriques › Erreurs de metin-ia.fr) :
+  # tâche, étape, les lignes juste avant « exit code », lien ; identité de la tâche, sans clé ; jamais bloquant
+  erreurs:
+    needs: [apk]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: outils/erreur-tache.mjs
+          sparse-checkout-cone-mode: false
+      - name: Erreur notée (page Erreurs de Metin)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          METIN_REFERENCE: versnsnatlheukulbacf
+        run: node outils/erreur-tache.mjs
