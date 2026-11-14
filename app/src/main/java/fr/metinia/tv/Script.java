@@ -7,7 +7,7 @@ final class Script {
     /**
      * - SpeechRecognition / webkitSpeechRecognition : dictée par la reconnaissance vocale de la télé ;
      * - speechSynthesis / SpeechSynthesisUtterance : lecture à voix haute par la synthèse vocale de la télé ;
-     * - case sélectionnée bien visible pour la navigation aux flèches ;
+     * - case sélectionnée visible pour la navigation aux flèches (liseré fin, 1.0.3) ;
      * - __metinTVInserer : le texte dicté avec le bouton micro de la télécommande va dans la zone de message.
      */
     static final String TEXTE = """
@@ -96,7 +96,9 @@ final class Script {
             if (document.getElementById('metin-tv-style')) return;
             var s = document.createElement('style');
             s.id = 'metin-tv-style';
-            s.textContent = ':focus{outline:4px solid #7cf08a !important;outline-offset:3px !important}'
+            // 1.0.3 : le cadre de sélection est celui du site (liseré fin de la charte, 2 px à l'intérieur) ; plus de cadre
+            // épais de 4 px imposé à toute la page (il faisait de grosses barres et recouvrait les boutons voisins)
+            s.textContent = ':focus{outline:2px solid #7cf08a;outline-offset:-2px}'
               + 'html{scroll-padding:80px}';
             (document.head || document.documentElement).appendChild(s);
           }

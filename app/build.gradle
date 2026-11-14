@@ -11,7 +11,8 @@ android {
         minSdk 24
         targetSdk 35
         versionCode numero
-        versionName "1.0.${numero}"
+        // le numéro de version est écrit dans gradle.properties (metinTvVersion) ; versionCode monte à chaque fabrication
+        versionName project.findProperty("metinTvVersion") ?: "1.0.${numero}"
     }
 
     signingConfigs {
@@ -41,4 +42,5 @@ android {
 
 dependencies {
     implementation "androidx.webkit:webkit:1.12.1"
+    testImplementation "junit:junit:4.13.2"
 }

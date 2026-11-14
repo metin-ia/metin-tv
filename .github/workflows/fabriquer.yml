@@ -51,7 +51,7 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk metin-tv.apk
           sha256sum metin-tv.apk | tee metin-tv.apk.sha256
-          version="1.0.${GITHUB_RUN_NUMBER}"
+          version="$(sed -n 's/^metinTvVersion=//p' gradle.properties)"; version="${version:-1.0.${GITHUB_RUN_NUMBER}}"
           gh release create "v$version" metin-tv.apk metin-tv.apk.sha256 \
             --title "Metin TV $version" \
             --notes "Application Metin pour Google TV. À télécharger avec Downloader : https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/metin-tv.apk" \
